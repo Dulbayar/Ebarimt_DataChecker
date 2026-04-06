@@ -1,0 +1,5 @@
+{
+  "env": {
+    "NODE_EXTRA_CA_CERTS": "C:\\Users\\Dulbayar.g\\Downloads\\sync-mn.pem"
+  }
+}
