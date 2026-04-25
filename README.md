@@ -62,8 +62,28 @@ Optional public env vars (for forked repo support):
 
 - `PUBLIC_GITHUB_OWNER`
 - `PUBLIC_GITHUB_REPO`
+- `PUBLIC_WEB_ONLY`
 
 If not set, defaults are:
 
 - Owner: `Dulbayar`
 - Repo: `Ebarimt_DataChecker`
+
+### Web-Only Mode (Recommended)
+
+The root route redirect behavior is controlled in [src/routes/+page.server.ts](src/routes/+page.server.ts).
+
+Set this on Vercel so web users always see the download page:
+
+- `PUBLIC_WEB_ONLY=true`
+
+Recommended Vercel envs:
+
+- `PUBLIC_WEB_ONLY=true`
+- `PUBLIC_GITHUB_OWNER=Dulbayar`
+- `PUBLIC_GITHUB_REPO=Ebarimt_DataChecker`
+
+Behavior:
+
+1. If `PUBLIC_WEB_ONLY=true`, `/` always redirects to `/download`.
+2. If not set, it falls back to user-agent detection and allows Tauri webview to open the app.
