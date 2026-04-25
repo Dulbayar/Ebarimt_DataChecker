@@ -35,26 +35,65 @@
 		progress = 0;
 		total = regNos.length;
 
-		const BATCH = 5;
-		for (let i = 0; i < regNos.length; i += BATCH) {
-			const batch = regNos.slice(i, i + BATCH);
+		const BASE = 'https://api.ebarimt.mn/api/info/check';
+
+		async function httpsGet(url: string): Promise<string> {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			return res.text();
+		}
+
+		for (const regNo of regNos) {
+			const trimmed = regNo.trim();
+			if (!trimmed) continue;
+
+			let tinData: Record<string, unknown>;
 			try {
-				const res = await fetch('/api/lookup', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ regNos: batch })
-				});
-				const data = await res.json();
-				if (data.error) {
-					lookupError = data.error;
-					break;
-				}
-				results = [...results, ...data.results];
-			} catch (e) {
-				lookupError = 'Сүлжээний алдаа';
-				break;
+				const tinText = await httpsGet(`${BASE}/getTinInfo?regNo=${encodeURIComponent(trimmed)}`);
+				tinData = JSON.parse(tinText);
+			} catch (e: unknown) {
+				const msg = e instanceof Error ? e.message : String(e);
+				results = [...results, { regNo: trimmed, tin: '', name: '', vatPayer: '', cityPayer: '', found: false, error: `Сүлжээний алдаа (TIN): ${msg}` }];
+				progress++;
+				continue;
 			}
-			progress = Math.min(i + BATCH, regNos.length);
+
+			if (tinData.status !== 200 || !tinData.data) {
+				results = [...results, { regNo: trimmed, tin: '', name: '', vatPayer: '', cityPayer: '', found: false, error: (tinData.msg as string) || `TIN олдсонгүй` }];
+				progress++;
+				continue;
+			}
+
+			const tin = tinData.data as string;
+
+			let infoData: Record<string, unknown>;
+			try {
+				const infoText = await httpsGet(`${BASE}/getInfo?tin=${encodeURIComponent(tin)}`);
+				infoData = JSON.parse(infoText);
+			} catch (e: unknown) {
+				const msg = e instanceof Error ? e.message : String(e);
+				results = [...results, { regNo: trimmed, tin, name: '', vatPayer: '', cityPayer: '', found: false, error: `Сүлжээний алдаа (Info): ${msg}` }];
+				progress++;
+				continue;
+			}
+
+			if (infoData.status !== 200) {
+				results = [...results, { regNo: trimmed, tin, name: '', vatPayer: '', cityPayer: '', found: false, error: (infoData.msg as string) || `Info олдсонгүй` }];
+				progress++;
+				continue;
+			}
+
+			const d = infoData.data as Record<string, unknown>;
+			results = [...results, {
+				regNo: trimmed,
+				tin,
+				name: (d.name as string) || '',
+				vatPayer: d.vatPayer ? 'Тийм' : 'Үгүй',
+				cityPayer: d.cityPayer ? 'Тийм' : 'Үгүй',
+				found: d.found !== false,
+				error: ''
+			}];
+			progress++;
 		}
 
 		loading = false;
@@ -110,8 +149,11 @@
 <div class="app">
 	<header>
 		<div class="header-content">
-			<h1>eBarimt Lookup</h1>
-			<p class="subtitle">Регистрийн дугаараар байгууллага хайх</p>
+			<div class="title-wrap">
+				<h1>eBarimt Lookup</h1>
+				<p class="subtitle">Регистрийн дугаараар байгууллага хайх</p>
+			</div>
+			<a class="download-link" href="/download">Download App</a>
 		</div>
 	</header>
 
@@ -254,6 +296,16 @@
 		max-width: 1100px;
 		margin: 0 auto;
 		padding: 1rem 0;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.title-wrap {
+		display: flex;
+		flex-direction: column;
 	}
 
 	h1 {
@@ -265,6 +317,24 @@
 		font-size: 0.85rem;
 		opacity: 0.8;
 		margin-top: 0.1rem;
+	}
+
+	.download-link {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.45rem 0.8rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.16);
+		border: 1px solid rgba(255, 255, 255, 0.3);
+		text-decoration: none;
+		color: white;
+		font-size: 0.83rem;
+		font-weight: 600;
+		transition: background 0.15s ease;
+	}
+
+	.download-link:hover {
+		background: rgba(255, 255, 255, 0.24);
 	}
 
 	main {

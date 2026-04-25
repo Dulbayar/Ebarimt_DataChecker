@@ -1,42 +1,69 @@
-# sv
+# DataFetching
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit + Tauri desktop app for bulk eBarimt company lookup by registration number.
 
-## Creating a project
+## Local Development
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
+Install dependencies:
 
 ```sh
-# recreate this project
-npx sv@0.14.0 create --template minimal --types ts --install npm .
+npm install
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Run the web app:
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
+Run checks:
 
 ```sh
+npm run check
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+## GitHub Build and Release Setup
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+This repository includes a release workflow at [.github/workflows/tauri-release.yml](.github/workflows/tauri-release.yml).
+
+What it does:
+
+1. Builds the Tauri app on `windows-latest`.
+2. Publishes build assets to a GitHub Release.
+3. Triggers on:
+	- Tag pushes like `v1.0.0`
+	- Manual run via Actions UI (`workflow_dispatch`) with a `tag` input
+
+### Release Steps
+
+Option 1: tag push
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Option 2: manual
+
+1. Open GitHub Actions.
+2. Run workflow `Build and Release Tauri App`.
+3. Enter a tag like `v1.0.1`.
+
+## Download Landing Page
+
+Download page route:
+
+- [/download](src/routes/download/+page.svelte)
+
+It loads the latest release from GitHub server-side in [+page.server.ts](src/routes/download/+page.server.ts).
+
+Optional public env vars (for forked repo support):
+
+- `PUBLIC_GITHUB_OWNER`
+- `PUBLIC_GITHUB_REPO`
+
+If not set, defaults are:
+
+- Owner: `Dulbayar`
+- Repo: `Ebarimt_DataChecker`
