@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { env } from '$env/dynamic/public';
+
 	type Row = {
 		regNo: string;
 		tin: string;
@@ -17,6 +21,19 @@
 	let total = $state(0);
 
 	let progressPct = $derived(total > 0 ? Math.round((progress / total) * 100) : 0);
+
+	function isTauriRuntime(): boolean {
+		const ua = navigator.userAgent.toLowerCase();
+		const w = window as Window & { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown };
+		return Boolean(w.__TAURI__ || w.__TAURI_INTERNALS__) || ua.includes('tauri') || ua.includes('wry');
+	}
+
+	onMount(() => {
+		const webOnlyMode = (env.PUBLIC_WEB_ONLY ?? '').trim().toLowerCase() === 'true';
+		if (webOnlyMode || !isTauriRuntime()) {
+			void goto('/download', { replaceState: true });
+		}
+	});
 
 	async function lookup() {
 		const regNos = inputText

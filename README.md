@@ -71,7 +71,7 @@ If not set, defaults are:
 
 ### Web-Only Mode (Recommended)
 
-The root route redirect behavior is controlled in [src/routes/+page.server.ts](src/routes/+page.server.ts).
+The root route redirect behavior is controlled client-side in [src/routes/+page.svelte](src/routes/+page.svelte).
 
 Set this on Vercel so web users always see the download page:
 
@@ -85,5 +85,5 @@ Recommended Vercel envs:
 
 Behavior:
 
-1. If `PUBLIC_WEB_ONLY=true`, `/` always redirects to `/download`.
-2. If not set, it falls back to user-agent detection and allows Tauri webview to open the app.
+1. If `PUBLIC_WEB_ONLY=true`, `/` redirects to `/download` in the browser.
+2. If not set, it uses runtime detection and keeps the desktop Tauri app on `/`.
