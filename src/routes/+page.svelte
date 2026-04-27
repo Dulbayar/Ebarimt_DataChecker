@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
+	import { invoke } from '@tauri-apps/api/core';
+	import * as XLSX from 'xlsx';
 
 	type Row = {
 		regNo: string;
@@ -19,6 +21,8 @@
 	let lookupError = $state('');
 	let progress = $state(0);
 	let total = $state(0);
+	let exportError = $state('');
+	let exporting = $state(false);
 
 	let progressPct = $derived(total > 0 ? Math.round((progress / total) * 100) : 0);
 
@@ -116,7 +120,10 @@
 		loading = false;
 	}
 
-	function exportCsv() {
+	async function exportXlsx() {
+		exportError = '';
+		exporting = true;
+
 		const header = ['Регистрийн дугаар', 'ТТД', 'Нэр', 'НӨАТ төлөгч', 'Хот татвар', 'Олдсон эсэх', 'Шалтгаан'];
 		const rows = results.map((r) => [
 			r.regNo,
@@ -128,25 +135,47 @@
 			r.error
 		]);
 
-		const csvContent =
-			'\uFEFF' +
-			[header, ...rows]
-				.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-				.join('\r\n');
+		try {
+			const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+			const workbook = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(workbook, worksheet, 'Lookup');
 
-		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `ebarimt_lookup_${new Date().toISOString().slice(0, 10)}.csv`;
-		a.click();
-		URL.revokeObjectURL(url);
+			const workbookArray = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+			const filename = `ebarimt_lookup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+			if (isTauriRuntime()) {
+				try {
+					await invoke<string>('save_xlsx_with_folder_picker', {
+						bytes: Array.from(new Uint8Array(workbookArray)),
+						filename
+					});
+				} catch (e: unknown) {
+					const msg = e instanceof Error ? e.message : String(e);
+					if (!msg.toLowerCase().includes('cancelled')) {
+						exportError = `Excel хадгалах үед алдаа гарлаа: ${msg}`;
+					}
+				}
+			} else {
+				const blob = new Blob([workbookArray], {
+					type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+				});
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = filename;
+				a.click();
+				URL.revokeObjectURL(url);
+			}
+		} finally {
+			exporting = false;
+		}
 	}
 
 	function clearAll() {
 		inputText = '';
 		results = [];
 		lookupError = '';
+		exportError = '';
 		progress = 0;
 		total = 0;
 	}
@@ -235,10 +264,15 @@
 							<span class="badge error">{results.filter((r) => r.error).length} алдаа</span>
 						{/if}
 						{#if !loading}
-							<button class="btn-export" onclick={exportCsv}>CSV татах</button>
+							<button class="btn-export" onclick={exportXlsx} disabled={exporting}>
+								{exporting ? 'Excel хадгалж байна...' : 'Excel татах'}
+							</button>
 						{/if}
 					</div>
 				</div>
+				{#if exportError}
+					<div class="error-msg export-error">{exportError}</div>
+				{/if}
 				<div class="table-wrap">
 					<table>
 						<thead>
